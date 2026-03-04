@@ -14,7 +14,7 @@ class FitbitAuthManager(private val context: Context) {
     private val authService = AuthorizationService(context)
 
     companion object {
-        const val CLIENT_ID = "YOUR_FITBIT_CLIENT_ID" // To be replaced by User
+        const val CLIENT_ID = "23V3Z5"
         const val REDIRECT_URI = "fitbitsync://callback"
         const val AUTH_ENDPOINT = "https://www.fitbit.com/oauth2/authorize"
         const val TOKEN_ENDPOINT = "https://api.fitbit.com/oauth2/token"
