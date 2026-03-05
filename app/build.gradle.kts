@@ -57,9 +57,5 @@ dependencies {
     implementation("net.openid:appauth:0.11.1")
     
     // MSAL for Microsoft Graph
-    implementation("com.microsoft.identity.client:msal:4.10.0")
-    
-    // MS Graph API SDK
-    implementation("com.microsoft.graph:microsoft-graph:6.0.1")
-    implementation("com.azure:azure-identity:1.11.0")
+    implementation("com.microsoft.identity.client:msal:8.2.2")
 }

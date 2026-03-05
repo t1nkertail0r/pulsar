@@ -21,8 +21,8 @@ import com.example.fitbitsync.ui.MainViewModel
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
-    private lateinit val fitbitAuthManager: FitbitAuthManager
-    private lateinit val microsoftAuthManager: MicrosoftAuthManager
+    private lateinit var fitbitAuthManager: FitbitAuthManager
+    private lateinit var microsoftAuthManager: MicrosoftAuthManager
 
     // Register a standard activity result launcher for AppAuth
     private val fitbitAuthLauncher = registerForActivityResult(
@@ -77,7 +77,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        fitbitAuthManager.dispose()
+        if (::fitbitAuthManager.isInitialized) {
+            fitbitAuthManager.dispose()
+        }
     }
 }
 
