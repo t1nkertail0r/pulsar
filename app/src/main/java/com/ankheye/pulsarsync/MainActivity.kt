@@ -14,9 +14,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.ankheye.pulsarsync.auth.FitbitAuthManager
 import com.ankheye.pulsarsync.auth.MicrosoftAuthManager
 import com.ankheye.pulsarsync.ui.MainViewModel
+import com.ankheye.pulsarsync.ui.screens.MainScreen
+import com.ankheye.pulsarsync.ui.screens.SettingsScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -63,24 +68,36 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppScreen(
-                        viewModel = viewModel,
-                        onConnectFitbit = {
-                            val intent = fitbitAuthManager.getAuthorizationRequestIntent()
-                            fitbitAuthLauncher.launch(intent)
-                        },
-                        onConnectMicrosoft = {
-                            microsoftAuthManager.signIn(
-                                activity = this,
-                                onSuccess = { token ->
-                                    viewModel.setMicrosoftToken(token)
+                    val navController = rememberNavController()
+
+                    NavHost(navController = navController, startDestination = "main") {
+                        composable("main") {
+                            MainScreen(
+                                onNavigateToSettings = { navController.navigate("settings") }
+                            )
+                        }
+                        composable("settings") {
+                            SettingsScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { navController.popBackStack() },
+                                onConnectFitbit = {
+                                    val intent = fitbitAuthManager.getAuthorizationRequestIntent()
+                                    fitbitAuthLauncher.launch(intent)
                                 },
-                                onError = {
-                                    viewModel.logStatus("Microsoft Auth Error: ${it.message}")
+                                onConnectMicrosoft = {
+                                    microsoftAuthManager.signIn(
+                                        activity = this@MainActivity,
+                                        onSuccess = { token ->
+                                            viewModel.setMicrosoftToken(token)
+                                        },
+                                        onError = {
+                                            viewModel.logStatus("Microsoft Auth Error: ${it.message}")
+                                        }
+                                    )
                                 }
                             )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -94,79 +111,4 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AppScreen(
-    viewModel: MainViewModel,
-    onConnectFitbit: () -> Unit,
-    onConnectMicrosoft: () -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Fitbit to OneDrive Sync") })
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(text = "Connect your accounts to start syncing.", style = MaterialTheme.typography.bodyLarge)
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = onConnectFitbit,
-                    enabled = !uiState.isFitbitConnected
-                ) {
-                    Text(if (uiState.isFitbitConnected) "Fitbit Connected" else "Connect Fitbit")
-                }
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = onConnectMicrosoft,
-                    enabled = !uiState.isMicrosoftConnected
-                ) {
-                    Text(if (uiState.isMicrosoftConnected) "Microsoft Connected" else "Connect Microsoft (OneDrive)")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { viewModel.syncYesterdayData() },
-                enabled = uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text("Sync Yesterday's Data")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Log:", style = MaterialTheme.typography.titleMedium)
-            
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text(
-                    text = uiState.statusLog,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-    }
-}

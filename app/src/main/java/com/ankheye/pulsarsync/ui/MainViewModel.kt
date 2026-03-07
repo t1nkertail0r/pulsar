@@ -22,6 +22,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
 
+    init {
+        refreshTrackerState()
+    }
+
+    private fun refreshTrackerState() {
+        val tracker = syncTrackerManager.loadTracker()
+        _uiState.value = _uiState.value.copy(
+            lastSyncDate = tracker.lastSyncDate,
+            syncedDates = tracker.syncedDates.toList().sortedDescending()
+        )
+    }
+
     fun setFitbitToken(token: String) {
         _uiState.value = _uiState.value.copy(fitbitAccessToken = token, isFitbitConnected = true)
         logStatus("Fitbit Connected.")
@@ -37,7 +49,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(statusLog = "$message\n$currentLog")
     }
 
-    fun syncYesterdayData() {
+    fun syncData(dateToSync: LocalDate) {
         val fitbitToken = _uiState.value.fitbitAccessToken
         val msToken = _uiState.value.microsoftAccessToken
 
@@ -45,22 +57,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             logStatus("Error: Both Fitbit and Microsoft must be connected to sync.")
             return
         }
-
-        // Determine date (yesterday)
-        val yesterday = LocalDate.now().minusDays(1)
         
         // Check if already synced
         val tracker = syncTrackerManager.loadTracker()
-        if (tracker.syncedDates.contains(yesterday)) {
-            logStatus("Data for ${yesterday.format(DateTimeFormatter.ISO_LOCAL_DATE)} has already been synced. Skipping.")
+        if (tracker.syncedDates.contains(dateToSync)) {
+            logStatus("Data for ${dateToSync.format(DateTimeFormatter.ISO_LOCAL_DATE)} has already been synced. Skipping.")
             return
         }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val dateStr = yesterday.format(DateTimeFormatter.ISO_LOCAL_DATE) // yyyy-MM-dd
-                val folderPath = "${yesterday.year}/${String.format("%02d", yesterday.monthValue)}/${String.format("%02d", yesterday.dayOfMonth)}"
+                val dateStr = dateToSync.format(DateTimeFormatter.ISO_LOCAL_DATE) // yyyy-MM-dd
+                val folderPath = "${dateToSync.year}/${String.format("%02d", dateToSync.monthValue)}/${String.format("%02d", dateToSync.dayOfMonth)}"
                 
                 logStatus("Fetching Fitbit data for $dateStr...")
                 val response = fitbitRepository.fetchDailySummary(fitbitToken, dateStr)
@@ -89,7 +98,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 if (csvResult.isSuccess && jsonResult.isSuccess) {
-                    syncTrackerManager.recordSuccessfulSync(yesterday)
+                    syncTrackerManager.recordSuccessfulSync(dateToSync)
+                    refreshTrackerState()
                     logStatus("Sync completed successfully for $dateStr!")
                 } else {
                     csvResult.exceptionOrNull()?.let { logStatus("CSV Upload Error: ${it.message}") }
@@ -112,5 +122,7 @@ data class UiState(
     val isFitbitConnected: Boolean = false,
     val isMicrosoftConnected: Boolean = false,
     val isLoading: Boolean = false,
-    val statusLog: String = ""
+    val statusLog: String = "",
+    val lastSyncDate: LocalDate? = null,
+    val syncedDates: List<LocalDate> = emptyList()
 )
