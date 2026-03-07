@@ -20,7 +20,7 @@ class FitbitAuthManager(private val context: Context) {
         const val REDIRECT_URI = "pulsarsync://callback"
         const val AUTH_ENDPOINT = "https://www.fitbit.com/oauth2/authorize"
         const val TOKEN_ENDPOINT = "https://api.fitbit.com/oauth2/token"
-        const val SCOPE = "activity profile"
+        const val SCOPE = "activity profile heartrate"
     }
 
     private val serviceConfig = AuthorizationServiceConfiguration(

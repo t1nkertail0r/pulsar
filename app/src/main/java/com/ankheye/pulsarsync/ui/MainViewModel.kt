@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.LocalTime
+import java.time.Duration
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -141,7 +143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(statusLog = "$message\n$currentLog")
     }
 
-    fun syncData(dateToSync: LocalDate) {
+    fun syncData(dateToSync: LocalDate, isForceSync: Boolean = false) {
         val fitbitToken = _uiState.value.fitbitAccessToken
         val msToken = _uiState.value.microsoftAccessToken
 
@@ -152,7 +154,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         
         // Check if already synced
         val tracker = syncTrackerManager.loadTracker()
-        if (tracker.syncedDates.contains(dateToSync)) {
+        if (!isForceSync && tracker.syncedDates.contains(dateToSync)) {
             logStatus("Data for ${dateToSync.format(DateTimeFormatter.ISO_LOCAL_DATE)} has already been synced. Skipping.")
             return
         }
@@ -189,13 +191,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     contentType = "application/json"
                 )
 
-                if (csvResult.isSuccess && jsonResult.isSuccess) {
+                var allDetailedSyncsSuccessful = true
+                val favoriteIds = _uiState.value.favoriteActivities.map { it.id }
+                
+                for (activity in response.activities) {
+                    if (favoriteIds.contains(activity.activityId)) { // note: Fitbit returns activityParentId or activityId. Using activityId from Favorites matching the global Activity leaf.
+                        logStatus("Fetching detailed data for favorite activity: ${activity.name} (${activity.logId})...")
+                        try {
+                            val detailJson = fitbitRepository.fetchActivityDetails(fitbitToken, activity.logId)
+                            val detailResult = oneDriveRepository.uploadFile(
+                                accessToken = msToken,
+                                folderPath = folderPath,
+                                fileName = "${activity.logId}.json",
+                                fileContent = detailJson,
+                                contentType = "application/json"
+                            )
+                            if (detailResult.isFailure) {
+                                allDetailedSyncsSuccessful = false
+                                logStatus("Failed to upload detailed JSON for ${activity.logId}: ${detailResult.exceptionOrNull()?.message}")
+                            } else {
+                                logStatus("Safely uploaded ${activity.logId}.json to OneDrive")
+                            }
+
+                            // Also fetch and upload intraday heart rate data
+                            val startTimeStr = activity.startTime // HH:mm
+                            val durationMs = activity.duration
+                            if (startTimeStr.isNotEmpty() && durationMs > 0) {
+                                try {
+                                    val startTime = LocalTime.parse(startTimeStr, DateTimeFormatter.ofPattern("HH:mm"))
+                                    val endTime = startTime.plus(Duration.ofMillis(durationMs))
+                                    val endTimeStr = endTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+                                    
+                                    logStatus("Fetching 1min Intraday Heart Rate ($startTimeStr - $endTimeStr)...")
+                                    val hrJson = fitbitRepository.fetchIntradayHeartRate(
+                                        accessToken = fitbitToken,
+                                        date = activity.startDate,
+                                        startTime = startTimeStr,
+                                        endTime = endTimeStr
+                                    )
+                                    val hrResult = oneDriveRepository.uploadFile(
+                                        accessToken = msToken,
+                                        folderPath = folderPath,
+                                        fileName = "${activity.logId}_heartrate.json",
+                                        fileContent = hrJson,
+                                        contentType = "application/json"
+                                    )
+                                    if (hrResult.isFailure) {
+                                        allDetailedSyncsSuccessful = false
+                                        logStatus("Failed to upload Heart Rate JSON for ${activity.logId}: ${hrResult.exceptionOrNull()?.message}")
+                                    } else {
+                                        logStatus("Safely uploaded ${activity.logId}_heartrate.json to OneDrive")
+                                    }
+                                } catch (hrException: Exception) {
+                                    allDetailedSyncsSuccessful = false
+                                    logStatus("Error fetching Intraday HR for ${activity.logId}: ${hrException.message}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            allDetailedSyncsSuccessful = false
+                            logStatus("Error fetching detailed activity for ${activity.logId}: ${e.message}")
+                        }
+                    }
+                }
+
+                if (csvResult.isSuccess && jsonResult.isSuccess && allDetailedSyncsSuccessful) {
                     syncTrackerManager.recordSuccessfulSync(dateToSync)
                     refreshTrackerState()
                     logStatus("Sync completed successfully for $dateStr!")
                 } else {
                     csvResult.exceptionOrNull()?.let { logStatus("CSV Upload Error: ${it.message}") }
                     jsonResult.exceptionOrNull()?.let { logStatus("JSON Upload Error: ${it.message}") }
+                    if (!allDetailedSyncsSuccessful) {
+                        logStatus("One or more detailed activity JSONs failed to upload.")
+                    }
                 }
 
             } catch (e: Exception) {

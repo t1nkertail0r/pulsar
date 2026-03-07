@@ -5,6 +5,7 @@ import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
+import okhttp3.ResponseBody
 
 interface FitbitApiService {
     @GET("1/user/-/activities/date/{date}.json")
@@ -16,4 +17,16 @@ interface FitbitApiService {
     suspend fun getActivitiesTree(
         @Header("Authorization") authHeader: String
     ): FitbitActivityCategoryResponse
+    @GET("1/user/-/activities/{logId}.json")
+    suspend fun getActivityDetails(
+        @Header("Authorization") authHeader: String,
+        @Path("logId") logId: Long
+    ): ResponseBody
+    @GET("1/user/-/activities/heart/date/{date}/1d/1min/time/{start}/{end}.json")
+    suspend fun getIntradayHeartRate(
+        @Header("Authorization") authHeader: String,
+        @Path("date") date: String,
+        @Path("start") startTime: String, // HH:mm format
+        @Path("end") endTime: String    // HH:mm format
+    ): ResponseBody
 }

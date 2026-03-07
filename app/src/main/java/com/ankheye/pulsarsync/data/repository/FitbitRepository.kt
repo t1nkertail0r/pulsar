@@ -39,4 +39,12 @@ class FitbitRepository {
     suspend fun fetchAllActivities(accessToken: String): List<FitbitCategory> {
         return apiService.getActivitiesTree("Bearer $accessToken").categories
     }
+
+    suspend fun fetchActivityDetails(accessToken: String, logId: Long): String {
+        return apiService.getActivityDetails("Bearer $accessToken", logId).string()
+    }
+
+    suspend fun fetchIntradayHeartRate(accessToken: String, date: String, startTime: String, endTime: String): String {
+        return apiService.getIntradayHeartRate("Bearer $accessToken", date, startTime, endTime).string()
+    }
 }

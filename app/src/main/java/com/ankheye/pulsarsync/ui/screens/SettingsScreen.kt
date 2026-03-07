@@ -34,6 +34,7 @@ fun SettingsScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var isForceSync by remember { mutableStateOf(false) }
     
     // Activities State
     var showActivitiesSheet by remember { mutableStateOf(false) }
@@ -55,7 +56,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             
@@ -196,9 +198,25 @@ fun SettingsScreen(
                 }
             }
 
+            // Force Sync Toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = isForceSync,
+                    onCheckedChange = { isForceSync = it }
+                )
+                Text(
+                    text = "Force Sync (Overwrite existing)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+
             Button(
                 onClick = { 
-                    selectedDate?.let { viewModel.syncData(it) } 
+                    selectedDate?.let { viewModel.syncData(it, isForceSync) } 
                 },
                 enabled = selectedDate != null && uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -244,7 +262,7 @@ fun SettingsScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .height(200.dp)
                 ) {
                     items(uiState.syncedDates) { date ->
                         ListItem(

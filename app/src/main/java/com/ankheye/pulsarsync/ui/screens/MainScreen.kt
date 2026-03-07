@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +37,8 @@ fun MainScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Stats Card
@@ -56,7 +59,7 @@ fun MainScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(250.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
