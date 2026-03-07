@@ -1,7 +1,9 @@
 package com.ankheye.pulsarsync.data.repository
 
 import com.ankheye.pulsarsync.data.api.FitbitApiService
+import com.ankheye.pulsarsync.data.model.FitbitActivityCategoryResponse
 import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.model.FitbitCategory
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -32,5 +34,9 @@ class FitbitRepository {
 
     suspend fun fetchDailySummary(accessToken: String, date: String): FitbitActivityResponse {
         return apiService.getDailyActivitySummary("Bearer $accessToken", date)
+    }
+
+    suspend fun fetchAllActivities(accessToken: String): List<FitbitCategory> {
+        return apiService.getActivitiesTree("Bearer $accessToken").categories
     }
 }

@@ -7,6 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +34,10 @@ fun SettingsScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    
+    // Activities State
+    var showActivitiesSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Scaffold(
         topBar = {
@@ -74,6 +80,99 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (uiState.isMicrosoftConnected) "Microsoft Connected" else "Connect Microsoft (OneDrive)")
+                    }
+                }
+            }
+
+            Divider()
+
+            // Favorite Activities Section
+            Text("Favorite Activities", style = MaterialTheme.typography.titleMedium)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (uiState.favoriteActivities.isEmpty()) {
+                        Text("No favorite activities selected.", style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        uiState.favoriteActivities.forEach { activity ->
+                            Text("• ${activity.name}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Button(
+                        onClick = { 
+                            viewModel.fetchAvailableActivities()
+                            showActivitiesSheet = true 
+                        },
+                        enabled = uiState.isFitbitConnected,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Select Favorites (${uiState.favoriteActivities.size}/5)")
+                    }
+                }
+            }
+
+            if (showActivitiesSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showActivitiesSheet = false },
+                    sheetState = sheetState
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            "Select up to 5 Favorites", 
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        } else {
+                            LazyColumn(modifier = Modifier.weight(1f)) {
+                                items(uiState.availableActivities) { activity ->
+                                    val isSelected = uiState.favoriteActivities.any { it.id == activity.id }
+                                    // Disable checkbox if we are at 5 and this item IS NOT selected
+                                    val isReachedLimit = uiState.favoriteActivities.size >= 5
+                                    val isEnabled = isSelected || !isReachedLimit
+                                    
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = { viewModel.toggleFavoriteActivity(activity) },
+                                            enabled = isEnabled
+                                        )
+                                        Text(
+                                            text = activity.name,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.padding(start = 8.dp),
+                                            color = if (isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Button(
+                            onClick = { showActivitiesSheet = false },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp)
+                        ) {
+                            Text("Done")
+                        }
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
