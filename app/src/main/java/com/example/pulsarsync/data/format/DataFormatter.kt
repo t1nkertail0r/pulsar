@@ -1,6 +1,6 @@
-package com.example.fitbitsync.data.format
+package com.example.pulsarsync.data.format
 
-import com.example.fitbitsync.data.model.FitbitActivityResponse
+import com.example.pulsarsync.data.model.FitbitActivityResponse
 import com.google.gson.GsonBuilder
 
 object DataFormatter {

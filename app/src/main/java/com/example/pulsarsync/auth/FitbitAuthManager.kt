@@ -1,4 +1,4 @@
-package com.example.fitbitsync.auth
+package com.example.pulsarsync.auth
 
 import android.content.Context
 import android.content.Intent
@@ -15,7 +15,7 @@ class FitbitAuthManager(private val context: Context) {
 
     companion object {
         const val CLIENT_ID = "23V3Z5"
-        const val REDIRECT_URI = "fitbitsync://callback"
+        const val REDIRECT_URI = "pulsarsync://callback"
         const val AUTH_ENDPOINT = "https://www.fitbit.com/oauth2/authorize"
         const val TOKEN_ENDPOINT = "https://api.fitbit.com/oauth2/token"
         const val SCOPE = "activity profile"

@@ -1,4 +1,4 @@
-package com.example.fitbitsync.data.model
+package com.example.pulsarsync.data.model
 
 data class FitbitActivityResponse(
     val activities: List<FitbitActivity>,

@@ -31,7 +31,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="fitbitsync"/>
+                <data android:scheme="pulsarsync"/>
             </intent-filter>
         </activity>
 
@@ -44,7 +44,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="msauth"
-                    android:host="com.example.fitbitsync"
+                    android:host="com.example.pulsarsync"
                     android:path="/InsertYourSignatureHashHere" />
             </intent-filter>
         </activity>

@@ -1,6 +1,6 @@
-package com.example.fitbitsync.data.api
+package com.example.pulsarsync.data.api
 
-import com.example.fitbitsync.data.model.FitbitActivityResponse
+import com.example.pulsarsync.data.model.FitbitActivityResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path

@@ -1,11 +1,11 @@
-package com.example.fitbitsync.ui
+package com.example.pulsarsync.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.fitbitsync.data.format.DataFormatter
-import com.example.fitbitsync.data.repository.FitbitRepository
-import com.example.fitbitsync.data.repository.OneDriveRepository
+import com.example.pulsarsync.data.format.DataFormatter
+import com.example.pulsarsync.data.repository.FitbitRepository
+import com.example.pulsarsync.data.repository.OneDriveRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch

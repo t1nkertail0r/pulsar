@@ -5,17 +5,17 @@ plugins {
 }
 
 android {
-    namespace = "com.example.fitbitsync"
+    namespace = "com.example.pulsarsync"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.fitbitsync"
+        applicationId = "com.example.pulsarsync"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.fitbitsync"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.pulsarsync"
     }
 
     buildTypes {

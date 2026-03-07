@@ -1,4 +1,4 @@
-package com.example.fitbitsync
+package com.example.pulsarsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,9 +14,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.fitbitsync.auth.FitbitAuthManager
-import com.example.fitbitsync.auth.MicrosoftAuthManager
-import com.example.fitbitsync.ui.MainViewModel
+import com.example.pulsarsync.auth.FitbitAuthManager
+import com.example.pulsarsync.auth.MicrosoftAuthManager
+import com.example.pulsarsync.ui.MainViewModel
 
 class MainActivity : ComponentActivity() {
 

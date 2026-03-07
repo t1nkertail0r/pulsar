@@ -1,4 +1,4 @@
-package com.example.fitbitsync.data.repository
+package com.example.pulsarsync.data.repository
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
