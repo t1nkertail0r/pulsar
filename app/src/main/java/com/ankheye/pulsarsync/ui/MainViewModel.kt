@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ankheye.pulsarsync.data.format.DataFormatter
 import com.ankheye.pulsarsync.data.repository.FitbitRepository
 import com.ankheye.pulsarsync.data.repository.OneDriveRepository
+import com.ankheye.pulsarsync.data.repository.SyncTrackerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,6 +17,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val fitbitRepository = FitbitRepository()
     private val oneDriveRepository = OneDriveRepository()
+    private val syncTrackerManager = SyncTrackerManager(application)
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
@@ -35,7 +37,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(statusLog = "$message\n$currentLog")
     }
 
-    fun syncYesterdayData(folderPath: String = "Apps/FitbitSync") {
+    fun syncYesterdayData() {
         val fitbitToken = _uiState.value.fitbitAccessToken
         val msToken = _uiState.value.microsoftAccessToken
 
@@ -44,12 +46,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        // Determine date (yesterday)
+        val yesterday = LocalDate.now().minusDays(1)
+        
+        // Check if already synced
+        val tracker = syncTrackerManager.loadTracker()
+        if (tracker.syncedDates.contains(yesterday)) {
+            logStatus("Data for ${yesterday.format(DateTimeFormatter.ISO_LOCAL_DATE)} has already been synced. Skipping.")
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // Determine date (yesterday)
-                val yesterday = LocalDate.now().minusDays(1)
                 val dateStr = yesterday.format(DateTimeFormatter.ISO_LOCAL_DATE) // yyyy-MM-dd
+                val folderPath = "${yesterday.year}/${String.format("%02d", yesterday.monthValue)}/${String.format("%02d", yesterday.dayOfMonth)}"
                 
                 logStatus("Fetching Fitbit data for $dateStr...")
                 val response = fitbitRepository.fetchDailySummary(fitbitToken, dateStr)
@@ -78,6 +89,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 if (csvResult.isSuccess && jsonResult.isSuccess) {
+                    syncTrackerManager.recordSuccessfulSync(yesterday)
                     logStatus("Sync completed successfully for $dateStr!")
                 } else {
                     csvResult.exceptionOrNull()?.let { logStatus("CSV Upload Error: ${it.message}") }

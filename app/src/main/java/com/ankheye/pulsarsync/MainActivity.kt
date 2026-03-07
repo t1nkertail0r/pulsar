@@ -138,7 +138,7 @@ fun AppScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = { viewModel.syncYesterdayData("Apps/FitbitSync") },
+                onClick = { viewModel.syncYesterdayData() },
                 enabled = uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
