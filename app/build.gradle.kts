@@ -5,17 +5,17 @@ plugins {
 }
 
 android {
-    namespace = "com.example.pulsarsync"
+    namespace = "com.ankheye.pulsarsync"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.pulsarsync"
+        applicationId = "com.ankheye.pulsarsync"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.pulsarsync"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.ankheye.pulsarsync"
     }
 
     buildTypes {

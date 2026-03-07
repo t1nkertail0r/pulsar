@@ -1,4 +1,4 @@
-package com.example.pulsarsync.data.repository
+package com.ankheye.pulsarsync.data.repository
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

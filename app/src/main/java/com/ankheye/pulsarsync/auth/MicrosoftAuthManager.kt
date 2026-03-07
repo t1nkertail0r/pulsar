@@ -1,4 +1,4 @@
-package com.example.pulsarsync.auth
+package com.ankheye.pulsarsync.auth
 
 import android.app.Activity
 import android.content.Context
@@ -24,7 +24,7 @@ class MicrosoftAuthManager(private val context: Context) {
             {
               "client_id": "YOUR_MSAL_CLIENT_ID",
               "authorization_user_agent": "DEFAULT",
-              "redirect_uri": "msauth://com.example.pulsarsync/InsertYourSignatureHashHere",
+              "redirect_uri": "msauth://com.ankheye.pulsarsync/InsertYourSignatureHashHere",
               "account_mode": "SINGLE",
               "authorities": [
                 {

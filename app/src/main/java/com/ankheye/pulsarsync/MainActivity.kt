@@ -1,4 +1,4 @@
-package com.example.pulsarsync
+package com.ankheye.pulsarsync
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,9 +14,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.pulsarsync.auth.FitbitAuthManager
-import com.example.pulsarsync.auth.MicrosoftAuthManager
-import com.example.pulsarsync.ui.MainViewModel
+import com.ankheye.pulsarsync.auth.FitbitAuthManager
+import com.ankheye.pulsarsync.auth.MicrosoftAuthManager
+import com.ankheye.pulsarsync.ui.MainViewModel
 
 class MainActivity : ComponentActivity() {
 

@@ -1,7 +1,7 @@
-package com.example.pulsarsync.data.repository
+package com.ankheye.pulsarsync.data.repository
 
-import com.example.pulsarsync.data.api.FitbitApiService
-import com.example.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.api.FitbitApiService
+import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor

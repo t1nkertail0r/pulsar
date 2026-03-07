@@ -1,6 +1,6 @@
-package com.example.pulsarsync.data.format
+package com.ankheye.pulsarsync.data.format
 
-import com.example.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
 import com.google.gson.GsonBuilder
 
 object DataFormatter {

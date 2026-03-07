@@ -1,6 +1,6 @@
-package com.example.pulsarsync.data.api
+package com.ankheye.pulsarsync.data.api
 
-import com.example.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path

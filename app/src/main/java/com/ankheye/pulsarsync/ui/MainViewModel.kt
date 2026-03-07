@@ -1,11 +1,11 @@
-package com.example.pulsarsync.ui
+package com.ankheye.pulsarsync.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pulsarsync.data.format.DataFormatter
-import com.example.pulsarsync.data.repository.FitbitRepository
-import com.example.pulsarsync.data.repository.OneDriveRepository
+import com.ankheye.pulsarsync.data.format.DataFormatter
+import com.ankheye.pulsarsync.data.repository.FitbitRepository
+import com.ankheye.pulsarsync.data.repository.OneDriveRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
