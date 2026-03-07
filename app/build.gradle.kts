@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -16,6 +24,9 @@ android {
         versionName = "1.0"
         
         manifestPlaceholders["appAuthRedirectScheme"] = "com.ankheye.pulsarsync"
+        
+        val fitbitSecret = localProperties.getProperty("FITBIT_CLIENT_SECRET") ?: "\"\""
+        buildConfigField("String", "FITBIT_CLIENT_SECRET", "\"$fitbitSecret\"")
     }
 
     buildTypes {
@@ -33,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

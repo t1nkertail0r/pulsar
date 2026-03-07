@@ -2,6 +2,7 @@ package com.ankheye.pulsarsync.auth
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.microsoft.identity.client.AuthenticationCallback
 import com.microsoft.identity.client.IAuthenticationResult
 import com.microsoft.identity.client.IPublicClientApplication
@@ -10,34 +11,37 @@ import com.microsoft.identity.client.exception.MsalException
 import java.io.File
 import java.io.FileOutputStream
 
-class MicrosoftAuthManager(private val context: Context) {
+class MicrosoftAuthManager(
+    private val context: Context,
+    private val onTokenAcquired: ((String) -> Unit)? = null,
+    private val onAuthError: ((Exception) -> Unit)? = null
+) {
 
     private var msalApp: IPublicClientApplication? = null
-    private val scopes = arrayOf("Files.ReadWrite.All", "User.Read")
+    private val scopes = arrayOf("Files.ReadWrite.AppFolder", "User.Read")
+    private val TAG = "MicrosoftAuthManager"
 
     init {
         // Create a temporary configuration file for MSAL initialization
         // Normally this is in res/raw/auth_config_single_account.json
         val configFile = File(context.cacheDir, "msal_config.json")
-        if (!configFile.exists()) {
-            val configJson = """
+        val configJson = """
+        {
+          "client_id": "5ca54ee8-677a-49ce-806c-7c2d72f5ea77",
+          "authorization_user_agent": "DEFAULT",
+          "redirect_uri": "msauth://com.ankheye.pulsarsync/hpu8za%2BPiOjX9nNtLCV6XlXHlJI%3D",
+          "account_mode": "SINGLE",
+          "authorities": [
             {
-              "client_id": "YOUR_MSAL_CLIENT_ID",
-              "authorization_user_agent": "DEFAULT",
-              "redirect_uri": "msauth://com.ankheye.pulsarsync/InsertYourSignatureHashHere",
-              "account_mode": "SINGLE",
-              "authorities": [
-                {
-                  "type": "AAD",
-                  "audience": {
-                    "type": "AzureADandPersonalMicrosoftAccount"
-                  }
-                }
-              ]
+              "type": "AAD",
+              "audience": {
+                "type": "AzureADandPersonalMicrosoftAccount"
+              }
             }
-            """.trimIndent()
-            FileOutputStream(configFile).use { it.write(configJson.toByteArray()) }
+          ]
         }
+        """.trimIndent()
+        FileOutputStream(configFile).use { it.write(configJson.toByteArray()) }
 
         PublicClientApplication.createSingleAccountPublicClientApplication(
             context,
@@ -45,9 +49,16 @@ class MicrosoftAuthManager(private val context: Context) {
             object : IPublicClientApplication.ISingleAccountApplicationCreatedListener {
                 override fun onCreated(application: com.microsoft.identity.client.ISingleAccountPublicClientApplication) {
                     msalApp = application
+                    
+                    // Attempt to load the signed-in account silently on startup
+                    acquireTokenSilent(
+                        onSuccess = { token -> onTokenAcquired?.invoke(token) },
+                        onError = { exception -> onAuthError?.invoke(exception) }
+                    )
                 }
 
                 override fun onError(exception: MsalException) {
+                    Log.e(TAG, "Error initializing MSAL App: ${exception.message}", exception)
                     exception.printStackTrace()
                 }
             }
@@ -55,12 +66,26 @@ class MicrosoftAuthManager(private val context: Context) {
     }
 
     fun signIn(activity: Activity, onSuccess: (String) -> Unit, onError: (Exception) -> Unit) {
-        msalApp?.acquireToken(activity, scopes, object : AuthenticationCallback {
+        if (msalApp == null) {
+            Log.e(TAG, "Cannot sign in, msalApp is null")
+            onError(Exception("MSAL app not initialized"))
+            return
+        }
+        
+        val singleAccountApp = msalApp as? com.microsoft.identity.client.ISingleAccountPublicClientApplication
+        if (singleAccountApp == null) {
+            Log.e(TAG, "msalApp is not an ISingleAccountPublicClientApplication")
+            onError(Exception("Invalid MSAL app type"))
+            return
+        }
+
+        singleAccountApp.signIn(activity, null, scopes, object : AuthenticationCallback {
             override fun onSuccess(authenticationResult: IAuthenticationResult) {
                 onSuccess(authenticationResult.accessToken)
             }
 
             override fun onError(exception: MsalException) {
+                Log.e(TAG, "Interactive token error: ${exception.message}", exception)
                 onError(exception)
             }
 

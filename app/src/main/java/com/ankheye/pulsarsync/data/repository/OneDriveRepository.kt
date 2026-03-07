@@ -18,8 +18,8 @@ class OneDriveRepository(private val client: OkHttpClient = OkHttpClient()) {
         contentType: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val path = if (folderPath.isNotEmpty()) "$folderPath/$fileName" else fileName
-            val url = "https://graph.microsoft.com/v1.0/me/drive/root:/${path.replace(" ", "%20")}:/content"
+            val path = if (folderPath.isNotEmpty() && folderPath != "Apps/PulsarSync") "$folderPath/$fileName" else fileName
+            val url = "https://graph.microsoft.com/v1.0/me/drive/special/approot:/${path.replace(" ", "%20")}:/content"
             
             val requestBody = fileContent.toRequestBody(contentType.toMediaType())
             val request = Request.Builder()

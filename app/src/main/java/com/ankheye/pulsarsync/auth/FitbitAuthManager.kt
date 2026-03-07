@@ -6,8 +6,10 @@ import android.net.Uri
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.ClientSecretBasic
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.TokenRequest
+import com.ankheye.pulsarsync.BuildConfig
 
 class FitbitAuthManager(private val context: Context) {
 
@@ -47,7 +49,9 @@ class FitbitAuthManager(private val context: Context) {
 
         if (response != null) {
             val tokenRequest: TokenRequest = response.createTokenExchangeRequest()
-            authService.performTokenRequest(tokenRequest) { tokenResponse, exception ->
+            val clientAuthentication = ClientSecretBasic(BuildConfig.FITBIT_CLIENT_SECRET)
+            
+            authService.performTokenRequest(tokenRequest, clientAuthentication) { tokenResponse, exception ->
                 if (tokenResponse != null) {
                     val accessToken = tokenResponse.accessToken ?: ""
                     val refreshToken = tokenResponse.refreshToken ?: ""

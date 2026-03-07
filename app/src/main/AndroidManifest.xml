@@ -45,7 +45,7 @@
                 <data
                     android:scheme="msauth"
                     android:host="com.ankheye.pulsarsync"
-                    android:path="/InsertYourSignatureHashHere" />
+                    android:path="/hpu8za+PiOjX9nNtLCV6XlXHlJI=" />
             </intent-filter>
         </activity>
 

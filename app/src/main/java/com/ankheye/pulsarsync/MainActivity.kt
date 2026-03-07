@@ -44,7 +44,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         fitbitAuthManager = FitbitAuthManager(this)
-        microsoftAuthManager = MicrosoftAuthManager(this)
+        microsoftAuthManager = MicrosoftAuthManager(
+            context = this,
+            onTokenAcquired = { token ->
+                viewModel.setMicrosoftToken(token)
+            },
+            onAuthError = { e ->
+                // Don't show an error to the user just because they aren't logged in yet
+                if (e.message != "No active account found") {
+                    viewModel.logStatus("Microsoft Silent Auth Error: ${e.message}")
+                }
+            }
+        )
 
         setContent {
             MaterialTheme {
