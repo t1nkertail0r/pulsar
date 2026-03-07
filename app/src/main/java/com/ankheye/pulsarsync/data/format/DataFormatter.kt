@@ -7,10 +7,11 @@ object DataFormatter {
 
     fun toCsv(response: FitbitActivityResponse, date: String): String {
         val sb = java.lang.StringBuilder()
-        sb.append("Date,ActivityName,StartTime,Duration_ms,Calories,Distance,Steps\n")
+        sb.append("Date,LogId,ActivityName,StartTime,Duration_ms,Calories,Distance,Steps\n")
         
         for (activity in response.activities) {
             sb.append(date).append(",")
+            sb.append(activity.logId).append(",")
             sb.append(activity.name.replace(",", "")).append(",")
             sb.append(activity.startTime).append(",")
             sb.append(activity.duration).append(",")
