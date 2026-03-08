@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.Duration
-import java.time.ZonedDateTime
+import java.time.OffsetDateTime
 import com.ankheye.pulsarsync.data.model.ActivityHistorySummary
 import com.ankheye.pulsarsync.data.model.HeartRateZoneInfo
 import com.google.gson.*
@@ -203,10 +203,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Filter down to the date range and matched favorite activities
                 val targetActivities = listResponse.activities.filter { activity -> 
                     try {
-                        val zdt = ZonedDateTime.parse(activity.startTime)
-                        val actDate = zdt.toLocalDate()
+                        val odt = OffsetDateTime.parse(activity.startTime)
+                        val actDate = odt.toLocalDate()
                         !actDate.isAfter(endDate) && favoriteIds.contains(activity.activityTypeId)
-                    } catch (e: Exception) { false }
+                    } catch (e: Exception) { 
+                        logStatus("Skipping unparseable activity date: ${activity.startTime}")
+                        false 
+                    }
                 }
                 
                 if (targetActivities.isEmpty()) {
@@ -223,10 +226,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     currentSync++
                     _uiState.value = _uiState.value.copy(syncProgress = "$currentSync/$totalSyncs")
                     
-                    val zdt = try {
-                        ZonedDateTime.parse(activity.startTime)
+                    val odt = try {
+                        OffsetDateTime.parse(activity.startTime)
                     } catch (e: Exception) { continue }
-                    val actLocalDate = zdt.toLocalDate()
+                    val actLocalDate = odt.toLocalDate()
                     val actDateStr = actLocalDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
                     val folderPath = "${actLocalDate.year}/${String.format("%02d", actLocalDate.monthValue)}/${String.format("%02d", actLocalDate.dayOfMonth)}"
                     
@@ -247,13 +250,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         // Also fetch and upload intraday heart rate data
-                        val startTimeStr = zdt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")) // HH:mm
+                        val startTimeStr = odt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")) // HH:mm
                         val durationMs = activity.duration
                         val hrZonesList = mutableListOf<HeartRateZoneInfo>()
                         
                         if (startTimeStr.isNotEmpty() && durationMs > 0) {
                             try {
-                                val startTime = zdt.toLocalTime()
+                                val startTime = odt.toLocalTime()
                                 val endTime = startTime.plus(Duration.ofMillis(durationMs))
                                 val endTimeStr = endTime.format(DateTimeFormatter.ofPattern("HH:mm"))
                                 
