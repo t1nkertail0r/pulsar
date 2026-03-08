@@ -3,6 +3,7 @@ package com.ankheye.pulsarsync.data.repository
 import com.ankheye.pulsarsync.data.api.FitbitApiService
 import com.ankheye.pulsarsync.data.model.FitbitActivityCategoryResponse
 import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.model.FitbitActivityListResponse
 import com.ankheye.pulsarsync.data.model.FitbitCategory
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
@@ -46,5 +47,9 @@ class FitbitRepository {
 
     suspend fun fetchIntradayHeartRate(accessToken: String, date: String, startTime: String, endTime: String): String {
         return apiService.getIntradayHeartRate("Bearer $accessToken", date, startTime, endTime).string()
+    }
+
+    suspend fun fetchActivityLogList(accessToken: String, afterDate: String, sort: String = "asc", limit: Int = 100, offset: Int = 0): FitbitActivityListResponse {
+        return apiService.getActivityLogList("Bearer $accessToken", afterDate, sort, limit, offset)
     }
 }

@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.LocalTime
 import java.time.Duration
+import java.time.ZonedDateTime
 import com.ankheye.pulsarsync.data.model.ActivityHistorySummary
 import com.ankheye.pulsarsync.data.model.HeartRateZoneInfo
 import com.google.gson.*
@@ -48,6 +48,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<UiState> = _uiState
 
     init {
+        _uiState.value = _uiState.value.copy(
+            syncEndDate = LocalDate.now(),
+            syncStartDate = LocalDate.now().minusDays(7)
+        )
         refreshTrackerState()
         refreshSettingsState()
     }
@@ -139,10 +143,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateSyncDates(start: LocalDate, end: LocalDate) {
+        _uiState.value = _uiState.value.copy(
+            syncStartDate = start,
+            syncEndDate = end
+        )
+    }
+
     private fun refreshTrackerState() {
         val tracker = syncTrackerManager.loadTracker()
         _uiState.value = _uiState.value.copy(
-            lastSyncDate = tracker.lastSyncDate,
             syncedDates = tracker.syncedDates.toList().sortedDescending()
         )
     }
@@ -162,7 +172,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(statusLog = "$message\n$currentLog")
     }
 
-    fun syncData(dateToSync: LocalDate, isForceSync: Boolean = false) {
+    fun syncData(startDate: LocalDate, endDate: LocalDate, isForceSync: Boolean = false) {
         val fitbitToken = _uiState.value.fitbitAccessToken
         val msToken = _uiState.value.microsoftAccessToken
 
@@ -170,203 +180,191 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             logStatus("Error: Both Fitbit and Microsoft must be connected to sync.")
             return
         }
-        
-        // Check if already synced
-        val tracker = syncTrackerManager.loadTracker()
-        if (!isForceSync && tracker.syncedDates.contains(dateToSync)) {
-            logStatus("Data for ${dateToSync.format(DateTimeFormatter.ISO_LOCAL_DATE)} has already been synced. Skipping.")
-            return
-        }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, syncProgress = null)
             try {
-                val dateStr = dateToSync.format(DateTimeFormatter.ISO_LOCAL_DATE) // yyyy-MM-dd
-                val folderPath = "${dateToSync.year}/${String.format("%02d", dateToSync.monthValue)}/${String.format("%02d", dateToSync.dayOfMonth)}"
+                val startStr = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val endStr = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val searchAfterDate = startDate.minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
                 
-                logStatus("Fetching Fitbit data for $dateStr...")
-                val response = fitbitRepository.fetchDailySummary(fitbitToken, dateStr)
+                logStatus("Fetching recent activities from Fitbit ($startStr to $endStr)...")
                 
-                logStatus("Formatting data...")
-                val csvContent = DataFormatter.toCsv(response, dateStr)
-                val jsonContent = DataFormatter.toJsonMetadata(response, dateStr)
-                
-                logStatus("Uploading to OneDrive...")
-                // Upload CSV
-                val csvResult = oneDriveRepository.uploadFile(
-                    accessToken = msToken,
-                    folderPath = folderPath,
-                    fileName = "fitness_data_$dateStr.csv",
-                    fileContent = csvContent,
-                    contentType = "text/csv"
+                // Fetch paginated list
+                val listResponse = fitbitRepository.fetchActivityLogList(
+                    accessToken = fitbitToken,
+                    afterDate = searchAfterDate,
+                    sort = "asc",
+                    limit = 100
                 )
                 
-                // Upload JSON
-                val jsonResult = oneDriveRepository.uploadFile(
-                    accessToken = msToken,
-                    folderPath = folderPath,
-                    fileName = "fitness_metadata_$dateStr.json",
-                    fileContent = jsonContent,
-                    contentType = "application/json"
-                )
-
-                var allDetailedSyncsSuccessful = true
                 val favoriteIds = _uiState.value.favoriteActivities.map { it.id }
                 
-                for (activity in response.activities) {
-                    if (favoriteIds.contains(activity.activityId)) { // note: Fitbit returns activityParentId or activityId. Using activityId from Favorites matching the global Activity leaf.
-                        logStatus("Fetching detailed data for favorite activity: ${activity.name} (${activity.logId})...")
-                        try {
-                            val detailJson = fitbitRepository.fetchActivityDetails(fitbitToken, activity.logId)
-                            val detailResult = oneDriveRepository.uploadFile(
-                                accessToken = msToken,
-                                folderPath = folderPath,
-                                fileName = "${activity.logId}.json",
-                                fileContent = detailJson,
-                                contentType = "application/json"
-                            )
-                            if (detailResult.isFailure) {
-                                allDetailedSyncsSuccessful = false
-                                logStatus("Failed to upload detailed JSON for ${activity.logId}: ${detailResult.exceptionOrNull()?.message}")
-                            } else {
-                                logStatus("Safely uploaded ${activity.logId}.json to OneDrive")
-                            }
+                // Filter down to the date range and matched favorite activities
+                val targetActivities = listResponse.activities.filter { activity -> 
+                    try {
+                        val zdt = ZonedDateTime.parse(activity.startTime)
+                        val actDate = zdt.toLocalDate()
+                        !actDate.isAfter(endDate) && favoriteIds.contains(activity.activityTypeId)
+                    } catch (e: Exception) { false }
+                }
+                
+                if (targetActivities.isEmpty()) {
+                    logStatus("No new Favorite Activities found in this date range.")
+                    return@launch
+                }
 
-                            // Also fetch and upload intraday heart rate data
-                            val startTimeStr = activity.startTime // HH:mm
-                            val durationMs = activity.duration
-                            val hrZonesList = mutableListOf<HeartRateZoneInfo>()
-                            
-                            if (startTimeStr.isNotEmpty() && durationMs > 0) {
-                                try {
-                                    val startTime = LocalTime.parse(startTimeStr, DateTimeFormatter.ofPattern("HH:mm"))
-                                    val endTime = startTime.plus(Duration.ofMillis(durationMs))
-                                    val endTimeStr = endTime.format(DateTimeFormatter.ofPattern("HH:mm"))
-                                    
-                                    logStatus("Fetching 1min Intraday Heart Rate ($startTimeStr - $endTimeStr)...")
-                                    val hrJson = fitbitRepository.fetchIntradayHeartRate(
-                                        accessToken = fitbitToken,
-                                        date = activity.startDate,
-                                        startTime = startTimeStr,
-                                        endTime = endTimeStr
-                                    )
-                                    val hrResult = oneDriveRepository.uploadFile(
-                                        accessToken = msToken,
-                                        folderPath = folderPath,
-                                        fileName = "${activity.logId}_heartrate.json",
-                                        fileContent = hrJson,
-                                        contentType = "application/json"
-                                    )
-                                    if (hrResult.isFailure) {
-                                        allDetailedSyncsSuccessful = false
-                                        logStatus("Failed to upload Heart Rate JSON for ${activity.logId}: ${hrResult.exceptionOrNull()?.message}")
-                                    } else {
-                                        logStatus("Safely uploaded ${activity.logId}_heartrate.json to OneDrive")
-                                    }
-                                    
-                                    // Parse hrJson for heartRateZones!
-                                    val hrObj = Gson().fromJson(hrJson, com.google.gson.JsonObject::class.java)
-                                    if (hrObj.has("activities-heart")) {
-                                        val heartArray = hrObj.getAsJsonArray("activities-heart")
-                                        if (heartArray.size() > 0) {
-                                            val dayObj = heartArray[0].asJsonObject
-                                            if (dayObj.has("heartRateZones")) {
-                                                val zonesArray = dayObj.getAsJsonArray("heartRateZones")
-                                                for (j in 0 until zonesArray.size()) {
-                                                    val zoneObj = zonesArray[j].asJsonObject
-                                                    hrZonesList.add(
-                                                        HeartRateZoneInfo(
-                                                            name = zoneObj.get("name").asString,
-                                                            min = zoneObj.get("min").asInt,
-                                                            max = zoneObj.get("max").asInt,
-                                                            minutes = zoneObj.get("minutes").asInt,
-                                                            caloriesOut = if (zoneObj.has("caloriesOut")) zoneObj.get("caloriesOut").asDouble else 0.0
-                                                        )
+                logStatus("Found ${targetActivities.size} Favorite Activities to sync! Processing...")
+                var allDetailedSyncsSuccessful = true
+                val totalSyncs = targetActivities.size
+                var currentSync = 0
+
+                for (activity in targetActivities) {
+                    currentSync++
+                    _uiState.value = _uiState.value.copy(syncProgress = "$currentSync/$totalSyncs")
+                    
+                    val zdt = try {
+                        ZonedDateTime.parse(activity.startTime)
+                    } catch (e: Exception) { continue }
+                    val actLocalDate = zdt.toLocalDate()
+                    val actDateStr = actLocalDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                    val folderPath = "${actLocalDate.year}/${String.format("%02d", actLocalDate.monthValue)}/${String.format("%02d", actLocalDate.dayOfMonth)}"
+                    
+                    logStatus("Syncing ${activity.activityName} on $actDateStr (Log ID: ${activity.logId})...")
+
+                    try {
+                        val detailJson = fitbitRepository.fetchActivityDetails(fitbitToken, activity.logId)
+                        val detailResult = oneDriveRepository.uploadFile(
+                            accessToken = msToken,
+                            folderPath = folderPath,
+                            fileName = "${activity.logId}.json",
+                            fileContent = detailJson,
+                            contentType = "application/json"
+                        )
+                        if (detailResult.isFailure) {
+                            allDetailedSyncsSuccessful = false
+                            logStatus("Failed to upload JSON for ${activity.logId}")
+                        }
+
+                        // Also fetch and upload intraday heart rate data
+                        val startTimeStr = zdt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")) // HH:mm
+                        val durationMs = activity.duration
+                        val hrZonesList = mutableListOf<HeartRateZoneInfo>()
+                        
+                        if (startTimeStr.isNotEmpty() && durationMs > 0) {
+                            try {
+                                val startTime = zdt.toLocalTime()
+                                val endTime = startTime.plus(Duration.ofMillis(durationMs))
+                                val endTimeStr = endTime.format(DateTimeFormatter.ofPattern("HH:mm"))
+                                
+                                val hrJson = fitbitRepository.fetchIntradayHeartRate(
+                                    accessToken = fitbitToken,
+                                    date = actDateStr,
+                                    startTime = startTimeStr,
+                                    endTime = endTimeStr
+                                )
+                                val hrResult = oneDriveRepository.uploadFile(
+                                    accessToken = msToken,
+                                    folderPath = folderPath,
+                                    fileName = "${activity.logId}_heartrate.json",
+                                    fileContent = hrJson,
+                                    contentType = "application/json"
+                                )
+                                if (hrResult.isFailure) {
+                                    allDetailedSyncsSuccessful = false
+                                    logStatus("Failed to upload HR JSON for ${activity.logId}")
+                                }
+                                
+                                // Parse hrJson for heartRateZones!
+                                val hrObj = Gson().fromJson(hrJson, com.google.gson.JsonObject::class.java)
+                                if (hrObj.has("activities-heart")) {
+                                    val heartArray = hrObj.getAsJsonArray("activities-heart")
+                                    if (heartArray.size() > 0) {
+                                        val dayObj = heartArray[0].asJsonObject
+                                        if (dayObj.has("heartRateZones")) {
+                                            val zonesArray = dayObj.getAsJsonArray("heartRateZones")
+                                            for (j in 0 until zonesArray.size()) {
+                                                val zoneObj = zonesArray[j].asJsonObject
+                                                hrZonesList.add(
+                                                    HeartRateZoneInfo(
+                                                        name = zoneObj.get("name").asString,
+                                                        min = zoneObj.get("min").asInt,
+                                                        max = zoneObj.get("max").asInt,
+                                                        minutes = zoneObj.get("minutes").asInt,
+                                                        caloriesOut = if (zoneObj.has("caloriesOut")) zoneObj.get("caloriesOut").asDouble else 0.0
                                                     )
-                                                }
+                                                )
                                             }
                                         }
                                     }
-                                } catch (hrException: Exception) {
-                                    allDetailedSyncsSuccessful = false
-                                    logStatus("Error fetching Intraday HR for ${activity.logId}: ${hrException.message}")
                                 }
+                            } catch (hrException: Exception) {
+                                allDetailedSyncsSuccessful = false
+                                logStatus("Error fetching HR for ${activity.logId}: ${hrException.message}")
                             }
-
-                            // Create a history record for the Master Cache
-                            val newHistoryRecord = ActivityHistorySummary(
-                                activityId = activity.activityId, // E.g., Soccer = 15605
-                                date = dateToSync,
-                                calories = activity.calories,
-                                steps = activity.steps,
-                                durationMs = activity.duration,
-                                heartRateZones = hrZonesList
-                            )
-
-                            // Download Master Cache for this activityId, update it, and re-upload!
-                            val cacheFileName = "recent_history_${activity.activityId}.json"
-                            val existingCacheResult = oneDriveRepository.downloadFile(
-                                accessToken = msToken,
-                                folderPath = "",
-                                fileName = cacheFileName
-                            )
-                            
-                            val cacheList = mutableListOf<ActivityHistorySummary>()
-                            if (existingCacheResult.isSuccess) {
-                                val existingJsonStr = existingCacheResult.getOrNull() ?: "[]"
-                                try {
-                                    val arr = gson.fromJson(existingJsonStr, Array<ActivityHistorySummary>::class.java)
-                                    if (arr != null) {
-                                        cacheList.addAll(arr)
-                                    }
-                                } catch (e: Exception) {
-                                    logStatus("Error parsing existing cache for ${activity.name}")
-                                }
-                            }
-                            
-                            // Remove any existing entry for this exact date to prevent duplicates on force-sync
-                            cacheList.removeAll { it.date == dateToSync }
-                            // Add new record and sort descending by date
-                            cacheList.add(newHistoryRecord)
-                            cacheList.sortByDescending { it.date }
-                            
-                            // Keep only the 10 most recent
-                            val truncatedCache = cacheList.take(10)
-                            val updatedCacheJson = gson.toJson(truncatedCache)
-                            
-                            oneDriveRepository.uploadFile(
-                                accessToken = msToken,
-                                folderPath = "",
-                                fileName = cacheFileName,
-                                fileContent = updatedCacheJson,
-                                contentType = "application/json"
-                            )
-                            
-                            logStatus("Updated root Master Cache for Favorite: ${activity.name}")
-                        } catch (e: Exception) {
-                            allDetailedSyncsSuccessful = false
-                            logStatus("Error fetching detailed activity for ${activity.logId}: ${e.message}")
                         }
+
+                        // Update Master Cache file
+                        val newHistoryRecord = ActivityHistorySummary(
+                            activityId = activity.activityTypeId,
+                            date = actLocalDate,
+                            calories = activity.calories,
+                            steps = activity.steps ?: 0,
+                            durationMs = activity.duration,
+                            heartRateZones = hrZonesList
+                        )
+
+                        val cacheFileName = "recent_history_${activity.activityTypeId}.json"
+                        val existingCacheResult = oneDriveRepository.downloadFile(
+                            accessToken = msToken,
+                            folderPath = "",
+                            fileName = cacheFileName
+                        )
+                        
+                        val cacheList = mutableListOf<ActivityHistorySummary>()
+                        if (existingCacheResult.isSuccess) {
+                            val existingJsonStr = existingCacheResult.getOrNull() ?: "[]"
+                            try {
+                                val arr = gson.fromJson(existingJsonStr, Array<ActivityHistorySummary>::class.java)
+                                if (arr != null) {
+                                    cacheList.addAll(arr)
+                                }
+                            } catch (e: Exception) {
+                                logStatus("Error parsing cache for ${activity.activityName}")
+                            }
+                        }
+                        
+                        // Overwrite exact existing duplicate if force sync is replacing old data
+                        cacheList.removeAll { it.date == actLocalDate && it.durationMs == activity.duration }
+                        cacheList.add(newHistoryRecord)
+                        cacheList.sortByDescending { it.date }
+                        
+                        val updatedCacheJson = gson.toJson(cacheList.take(10))
+                        
+                        oneDriveRepository.uploadFile(
+                            accessToken = msToken,
+                            folderPath = "",
+                            fileName = cacheFileName,
+                            fileContent = updatedCacheJson,
+                            contentType = "application/json"
+                        )
+                    } catch (e: Exception) {
+                        allDetailedSyncsSuccessful = false
+                        logStatus("Error with detailed sync for ${activity.logId}: ${e.message}")
                     }
                 }
 
-                if (csvResult.isSuccess && jsonResult.isSuccess && allDetailedSyncsSuccessful) {
-                    syncTrackerManager.recordSuccessfulSync(dateToSync)
-                    refreshTrackerState()
-                    logStatus("Sync completed successfully for $dateStr!")
+                if (allDetailedSyncsSuccessful) {
+                    logStatus("Sync completed successfully for date range!")
                 } else {
-                    csvResult.exceptionOrNull()?.let { logStatus("CSV Upload Error: ${it.message}") }
-                    jsonResult.exceptionOrNull()?.let { logStatus("JSON Upload Error: ${it.message}") }
-                    if (!allDetailedSyncsSuccessful) {
-                        logStatus("One or more detailed activity JSONs failed to upload.")
-                    }
+                    logStatus("One or more detailed activity JSONs failed to upload.")
                 }
 
             } catch (e: Exception) {
                 logStatus("Sync failed: ${e.message}")
                 e.printStackTrace()
             } finally {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                _uiState.value = _uiState.value.copy(isLoading = false, syncProgress = null)
             }
         }
     }
@@ -417,8 +415,10 @@ data class UiState(
     val isFitbitConnected: Boolean = false,
     val isMicrosoftConnected: Boolean = false,
     val isLoading: Boolean = false,
+    val syncProgress: String? = null,
     val statusLog: String = "",
-    val lastSyncDate: LocalDate? = null,
+    val syncStartDate: LocalDate? = null,
+    val syncEndDate: LocalDate? = null,
     val syncedDates: List<LocalDate> = emptyList(),
     val favoriteActivities: List<FavoriteActivity> = emptyList(),
     val availableActivities: List<FavoriteActivity> = emptyList(),

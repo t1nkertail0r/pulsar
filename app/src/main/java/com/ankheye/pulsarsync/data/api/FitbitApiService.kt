@@ -2,7 +2,9 @@ package com.ankheye.pulsarsync.data.api
 
 import com.ankheye.pulsarsync.data.model.FitbitActivityCategoryResponse
 import com.ankheye.pulsarsync.data.model.FitbitActivityResponse
+import com.ankheye.pulsarsync.data.model.FitbitActivityListResponse
 import retrofit2.http.GET
+import retrofit2.http.Query
 import retrofit2.http.Header
 import retrofit2.http.Path
 import okhttp3.ResponseBody
@@ -29,4 +31,13 @@ interface FitbitApiService {
         @Path("start") startTime: String, // HH:mm format
         @Path("end") endTime: String    // HH:mm format
     ): ResponseBody
+
+    @GET("1/user/-/activities/list.json")
+    suspend fun getActivityLogList(
+        @Header("Authorization") authHeader: String,
+        @Query("afterDate") afterDate: String,
+        @Query("sort") sort: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int
+    ): FitbitActivityListResponse
 }

@@ -31,9 +31,10 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     
     // Date Picker State
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
-    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    val startDatePickerState = rememberDatePickerState()
+    val endDatePickerState = rememberDatePickerState()
     var isForceSync by remember { mutableStateOf(false) }
     
     // Activities State
@@ -190,11 +191,25 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = selectedDate?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")) ?: "No date selected",
+                    text = "Start: ${uiState.syncStartDate?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")) ?: "None"}",
                     style = MaterialTheme.typography.bodyLarge
                 )
-                OutlinedButton(onClick = { showDatePicker = true }) {
-                    Text("Select Date")
+                OutlinedButton(onClick = { showStartDatePicker = true }) {
+                    Text("Select Start")
+                }
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "End:   ${uiState.syncEndDate?.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")) ?: "None"}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                OutlinedButton(onClick = { showEndDatePicker = true }) {
+                    Text("Select End")
                 }
             }
 
@@ -216,38 +231,74 @@ fun SettingsScreen(
 
             Button(
                 onClick = { 
-                    selectedDate?.let { viewModel.syncData(it, isForceSync) } 
+                    val start = uiState.syncStartDate
+                    val end = uiState.syncEndDate
+                    if (start != null && end != null) {
+                        viewModel.syncData(start, end, isForceSync)
+                    }
                 },
-                enabled = selectedDate != null && uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
+                enabled = uiState.syncStartDate != null && uiState.syncEndDate != null && uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                        if (uiState.syncProgress != null) {
+                            Text(" Syncing... ${uiState.syncProgress}", modifier = Modifier.padding(start = 12.dp))
+                        } else {
+                            Text(" Syncing...", modifier = Modifier.padding(start = 12.dp))
+                        }
+                    }
                 } else {
-                    Text("Sync Selected Date")
+                    Text("Sync Date Range")
                 }
             }
 
-            if (showDatePicker) {
+            if (showStartDatePicker) {
                 DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
+                    onDismissRequest = { showStartDatePicker = false },
                     confirmButton = {
                         TextButton(onClick = {
-                            datePickerState.selectedDateMillis?.let { millis ->
-                                selectedDate = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                            startDatePickerState.selectedDateMillis?.let { millis ->
+                                val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                                viewModel.updateSyncDates(date, uiState.syncEndDate ?: date)
                             }
-                            showDatePicker = false
+                            showStartDatePicker = false
                         }) {
                             Text("OK")
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
+                        TextButton(onClick = { showStartDatePicker = false }) {
                             Text("Cancel")
                         }
                     }
                 ) {
-                    DatePicker(state = datePickerState)
+                    DatePicker(state = startDatePickerState)
+                }
+            }
+            
+            if (showEndDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showEndDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            endDatePickerState.selectedDateMillis?.let { millis ->
+                                val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                                viewModel.updateSyncDates(uiState.syncStartDate ?: date, date)
+                            }
+                            showEndDatePicker = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEndDatePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                ) {
+                    DatePicker(state = endDatePickerState)
                 }
             }
 

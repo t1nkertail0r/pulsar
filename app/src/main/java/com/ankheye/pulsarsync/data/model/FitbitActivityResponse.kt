@@ -20,7 +20,7 @@ data class FitbitActivity(
     val lastModified: String?,
     val logId: Long,
     val name: String,
-    val startDate: String,
+    val startDate: String?,
     val startTime: String,
     val steps: Int
 )
@@ -49,4 +49,28 @@ data class ActivitySummary(
 data class ActivityDistance(
     val activity: String,
     val distance: Double
+)
+
+data class FitbitActivityLog(
+    val logId: Long,
+    val activityTypeId: Long,
+    val activityName: String,
+    val calories: Int,
+    val steps: Int?, // Optional as some activities don't have steps
+    val duration: Long,
+    val startTime: String // ISO-8601 string containing date and time e.g "2026-02-28T11:10:09.000-08:00"
+)
+
+data class FitbitActivityListResponse(
+    val activities: List<FitbitActivityLog>,
+    val pagination: PaginationMetadata
+)
+
+data class PaginationMetadata(
+    val afterDate: String,
+    val limit: Int,
+    val next: String,
+    val offset: Int,
+    val previous: String,
+    val sort: String
 )
