@@ -22,6 +22,9 @@ import com.ankheye.pulsarsync.auth.MicrosoftAuthManager
 import com.ankheye.pulsarsync.ui.MainViewModel
 import com.ankheye.pulsarsync.ui.screens.MainScreen
 import com.ankheye.pulsarsync.ui.screens.SettingsScreen
+import com.ankheye.pulsarsync.ui.screens.ActivityDetailsScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
 
@@ -73,7 +76,11 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = "main") {
                         composable("main") {
                             MainScreen(
-                                onNavigateToSettings = { navController.navigate("settings") }
+                                viewModel = viewModel,
+                                onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToDetails = { activityId -> 
+                                    navController.navigate("activity_details/$activityId") 
+                                }
                             )
                         }
                         composable("settings") {
@@ -95,6 +102,17 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
+                            )
+                        }
+                        composable(
+                            route = "activity_details/{activityId}",
+                            arguments = listOf(navArgument("activityId") { type = NavType.LongType })
+                        ) { backStackEntry ->
+                            val id = backStackEntry.arguments?.getLong("activityId") ?: 0L
+                            ActivityDetailsScreen(
+                                activityId = id,
+                                viewModel = viewModel,
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                     }
