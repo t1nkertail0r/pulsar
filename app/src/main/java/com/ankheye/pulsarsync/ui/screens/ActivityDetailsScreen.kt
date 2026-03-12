@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.time.format.DateTimeFormatter
 import com.ankheye.pulsarsync.ui.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +46,17 @@ fun ActivityDetailsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Recent History", style = MaterialTheme.typography.titleMedium)
+            Column {
+                Text("Recent History", style = MaterialTheme.typography.titleMedium)
+                
+                val lastSynced = uiState.latestSyncDates[activityId]
+                Text(
+                    text = lastSynced?.let { "Last Activity: ${it.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))}" } ?: "Never Synced",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             
             if (uiState.isLoadingHistory) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))

@@ -183,7 +183,21 @@ fun SettingsScreen(
             Divider()
 
             // Manual Sync Section
-            Text("Manual Sync", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Manual Sync", style = MaterialTheme.typography.titleMedium)
+                val globalLastSync = uiState.syncedDates.maxOrNull()
+                if (globalLastSync != null) {
+                    Text(
+                        "Last Synced: ${globalLastSync.format(DateTimeFormatter.ofPattern("MMM dd"))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -274,7 +288,11 @@ fun SettingsScreen(
                         }
                     }
                 ) {
-                    DatePicker(state = startDatePickerState)
+                    DatePicker(
+                        state = startDatePickerState,
+                        title = { Text(text = "Select Start Date", modifier = Modifier.padding(16.dp)) },
+                        showModeToggle = false,
+                    )
                 }
             }
             
@@ -298,7 +316,11 @@ fun SettingsScreen(
                         }
                     }
                 ) {
-                    DatePicker(state = endDatePickerState)
+                    DatePicker(
+                        state = endDatePickerState,
+                        title = { Text(text = "Select End Date", modifier = Modifier.padding(16.dp)) },
+                        showModeToggle = false,
+                    )
                 }
             }
 

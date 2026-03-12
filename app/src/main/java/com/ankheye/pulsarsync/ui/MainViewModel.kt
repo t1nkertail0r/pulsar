@@ -61,6 +61,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(
             favoriteActivities = settings.favoriteActivities
         )
+        refreshLatestSyncDates()
     }
 
     fun fetchAvailableActivities() {
@@ -165,6 +166,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setMicrosoftToken(token: String) {
         _uiState.value = _uiState.value.copy(microsoftAccessToken = token, isMicrosoftConnected = true)
         logStatus("Microsoft Connected.")
+        
+        // Refresh the Sync Dates MAP now that we have auth to check OneDrive
+        refreshLatestSyncDates()
+    }
+    
+    private fun refreshLatestSyncDates() {
+        val favorites = _uiState.value.favoriteActivities
+        val msToken = _uiState.value.microsoftAccessToken ?: return
+        
+        viewModelScope.launch {
+            val syncMap = mutableMapOf<Long, LocalDate>()
+            
+            for (activity in favorites) {
+                val cacheFileName = "recent_history_${activity.id}.json"
+                val cacheResult = oneDriveRepository.downloadFile(
+                    accessToken = msToken,
+                    folderPath = "",
+                    fileName = cacheFileName
+                )
+                
+                if (cacheResult.isSuccess) {
+                    val cacheJsonStr = cacheResult.getOrNull() ?: "[]"
+                    try {
+                        val arr = gson.fromJson(cacheJsonStr, Array<ActivityHistorySummary>::class.java)
+                        if (!arr.isNullOrEmpty()) {
+                            // Elements are sorted descending during write, so arr[0] is the latest
+                            syncMap[activity.id] = arr[0].date
+                        }
+                    } catch (e: Exception) {
+                        // Suppress parse errors for individual files during background map builds
+                    }
+                }
+            }
+            
+            _uiState.value = _uiState.value.copy(latestSyncDates = syncMap)
+        }
     }
 
     fun logStatus(message: String) {
@@ -426,5 +463,6 @@ data class UiState(
     val favoriteActivities: List<FavoriteActivity> = emptyList(),
     val availableActivities: List<FavoriteActivity> = emptyList(),
     val activityHistory: List<ActivityHistorySummary> = emptyList(),
-    val isLoadingHistory: Boolean = false
+    val isLoadingHistory: Boolean = false,
+    val latestSyncDates: Map<Long, LocalDate> = emptyMap()
 )

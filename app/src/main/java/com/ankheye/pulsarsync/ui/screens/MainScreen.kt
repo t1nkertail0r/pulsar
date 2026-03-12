@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
+import java.time.format.DateTimeFormatter
 import com.ankheye.pulsarsync.ui.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,10 +82,19 @@ fun MainScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(favorite.name, style = MaterialTheme.typography.titleLarge)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            val lastSynced = uiState.latestSyncDates[favorite.id]
                             Text(
-                                text = "Tap to view recent synced history and Heart Rate Zones",
+                                text = lastSynced?.let { "Last Activity: ${it.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))}" } ?: "Never Synced",
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "Tap to view recent history and Heart Rate Zones",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
