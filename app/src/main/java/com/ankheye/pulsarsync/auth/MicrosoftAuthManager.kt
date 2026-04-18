@@ -25,11 +25,16 @@ class MicrosoftAuthManager(
         // Create a temporary configuration file for MSAL initialization
         // Normally this is in res/raw/auth_config_single_account.json
         val configFile = File(context.cacheDir, "msal_config.json")
+        val clientId = com.ankheye.pulsarsync.BuildConfig.MSAL_CLIENT_ID
+        val signatureHash = com.ankheye.pulsarsync.BuildConfig.MSAL_SIGNATURE_HASH
+        val encodedSignature = java.net.URLEncoder.encode(signatureHash, "UTF-8")
+        val redirectUri = "msauth://com.ankheye.pulsarsync/$encodedSignature"
+
         val configJson = """
         {
-          "client_id": "5ca54ee8-677a-49ce-806c-7c2d72f5ea77",
+          "client_id": "$clientId",
           "authorization_user_agent": "DEFAULT",
-          "redirect_uri": "msauth://com.ankheye.pulsarsync/hpu8za%2BPiOjX9nNtLCV6XlXHlJI%3D",
+          "redirect_uri": "$redirectUri",
           "account_mode": "SINGLE",
           "authorities": [
             {

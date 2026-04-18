@@ -25,8 +25,23 @@ android {
         
         manifestPlaceholders["appAuthRedirectScheme"] = "com.ankheye.pulsarsync"
         
-        val fitbitSecret = localProperties.getProperty("FITBIT_CLIENT_SECRET") ?: "\"\""
+        val fitbitSecret = System.getenv("FITBIT_CLIENT_SECRET")
+            ?: localProperties.getProperty("FITBIT_CLIENT_SECRET")
+            ?: ""
         buildConfigField("String", "FITBIT_CLIENT_SECRET", "\"$fitbitSecret\"")
+
+        val msalClientId = System.getenv("MSAL_CLIENT_ID")
+            ?: localProperties.getProperty("MSAL_CLIENT_ID")
+            ?: "5ca54ee8-677a-49ce-806c-7c2d72f5ea77"
+        buildConfigField("String", "MSAL_CLIENT_ID", "\"$msalClientId\"")
+
+        val msalSignatureHash = System.getenv("MSAL_SIGNATURE_HASH")
+            ?: localProperties.getProperty("MSAL_SIGNATURE_HASH")
+            ?: "hpu8za+PiOjX9nNtLCV6XlXHlJI="
+        buildConfigField("String", "MSAL_SIGNATURE_HASH", "\"$msalSignatureHash\"")
+        
+        // Also add the hash to manifestPlaceholders for the AndroidManifest.xml
+        manifestPlaceholders["msalSignatureHash"] = msalSignatureHash
     }
 
     buildTypes {

@@ -47,7 +47,7 @@
                 <data
                     android:scheme="msauth"
                     android:host="com.ankheye.pulsarsync"
-                    android:path="/hpu8za+PiOjX9nNtLCV6XlXHlJI=" />
+                    android:pathPattern="/.*" />
             </intent-filter>
         </activity>
 
