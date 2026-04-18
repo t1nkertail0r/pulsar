@@ -24,7 +24,7 @@
         android:theme="@style/Theme.FitbitSync"
         tools:targetApi="31">
         
-        <!-- AppAuth redirect for Fitbit -->
+        <!-- AppAuth redirect for Google Health -->
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
             android:exported="true"
@@ -34,6 +34,12 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="pulsarsync"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.ankheye.pulsarsync"/>
             </intent-filter>
         </activity>
 

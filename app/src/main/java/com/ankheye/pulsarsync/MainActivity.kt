@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ankheye.pulsarsync.auth.FitbitAuthManager
 import com.ankheye.pulsarsync.auth.MicrosoftAuthManager
+import com.ankheye.pulsarsync.auth.GoogleHealthAuthManager
 import com.ankheye.pulsarsync.ui.MainViewModel
 import com.ankheye.pulsarsync.ui.screens.MainScreen
 import com.ankheye.pulsarsync.ui.screens.SettingsScreen
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var fitbitAuthManager: FitbitAuthManager
     private lateinit var microsoftAuthManager: MicrosoftAuthManager
+    private lateinit var googleAuthManager: GoogleHealthAuthManager
 
     // Register a standard activity result launcher for AppAuth
     private val fitbitAuthLauncher = registerForActivityResult(
@@ -49,9 +51,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val googleAuthLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            googleAuthManager.handleAuthorizationResponse(
+                result.data!!,
+                onSuccess = { accessToken, _ ->
+                    viewModel.setGoogleToken(accessToken)
+                },
+                onError = {
+                    viewModel.logStatus("Google Health Auth Error: ${it.message}")
+                }
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         fitbitAuthManager = FitbitAuthManager(this)
+        googleAuthManager = GoogleHealthAuthManager(this)
         microsoftAuthManager = MicrosoftAuthManager(
             context = this,
             onTokenAcquired = { token ->
@@ -101,6 +120,10 @@ class MainActivity : ComponentActivity() {
                                             viewModel.logStatus("Microsoft Auth Error: ${it.message}")
                                         }
                                     )
+                                },
+                                onConnectGoogleHealth = {
+                                    val intent = googleAuthManager.getAuthorizationRequestIntent()
+                                    googleAuthLauncher.launch(intent)
                                 }
                             )
                         }
@@ -125,6 +148,9 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         if (::fitbitAuthManager.isInitialized) {
             fitbitAuthManager.dispose()
+        }
+        if (::googleAuthManager.isInitialized) {
+            googleAuthManager.dispose()
         }
     }
 }
