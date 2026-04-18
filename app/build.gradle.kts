@@ -40,6 +40,11 @@ android {
             ?: "hpu8za+PiOjX9nNtLCV6XlXHlJI="
         buildConfigField("String", "MSAL_SIGNATURE_HASH", "\"$msalSignatureHash\"")
         
+        val msalRedirectUri = System.getenv("MSAL_REDIRECT_URI")
+            ?: localProperties.getProperty("MSAL_REDIRECT_URI")
+            ?: "msauth://com.ankheye.pulsarsync/7HTh%2Fzk6bA0lTAtnaiUW%2BBguDKs%3D"
+        buildConfigField("String", "MSAL_REDIRECT_URI", "\"$msalRedirectUri\"")
+        
         // Also add the hash to manifestPlaceholders for the AndroidManifest.xml
         manifestPlaceholders["msalSignatureHash"] = msalSignatureHash
     }

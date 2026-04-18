@@ -26,9 +26,7 @@ class MicrosoftAuthManager(
         // Normally this is in res/raw/auth_config_single_account.json
         val configFile = File(context.cacheDir, "msal_config.json")
         val clientId = com.ankheye.pulsarsync.BuildConfig.MSAL_CLIENT_ID
-        val signatureHash = com.ankheye.pulsarsync.BuildConfig.MSAL_SIGNATURE_HASH
-        val encodedSignature = java.net.URLEncoder.encode(signatureHash, "UTF-8")
-        val redirectUri = "msauth://com.ankheye.pulsarsync/$encodedSignature"
+        val redirectUri = com.ankheye.pulsarsync.BuildConfig.MSAL_REDIRECT_URI
 
         val configJson = """
         {
