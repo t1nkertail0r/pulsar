@@ -170,6 +170,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Refresh the Sync Dates MAP now that we have auth to check OneDrive
         refreshLatestSyncDates()
     }
+
+    fun setGoogleToken(token: String) {
+        _uiState.value = _uiState.value.copy(googleAccessToken = token, isGoogleHealthConnected = true)
+        logStatus("Google Health Connected.")
+    }
+
+    fun setActiveApiSource(source: String) {
+        _uiState.value = _uiState.value.copy(activeApiSource = source)
+        logStatus("Active Data Source set to $source")
+    }
     
     private fun refreshLatestSyncDates() {
         val favorites = _uiState.value.favoriteActivities
@@ -210,11 +220,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncData(startDate: LocalDate, endDate: LocalDate, isForceSync: Boolean = false) {
-        val fitbitToken = _uiState.value.fitbitAccessToken
         val msToken = _uiState.value.microsoftAccessToken
 
-        if (fitbitToken == null || msToken == null) {
-            logStatus("Error: Both Fitbit and Microsoft must be connected to sync.")
+        if (msToken == null) {
+            logStatus("Error: Microsoft must be connected to sync.")
+            return
+        }
+
+        if (_uiState.value.activeApiSource == "GoogleHealth") {
+            val googleToken = _uiState.value.googleAccessToken
+            if (googleToken == null) {
+                logStatus("Error: Google Health must be connected to sync.")
+                return
+            }
+            syncGoogleHealthData(startDate, endDate, googleToken, msToken)
+            return
+        }
+
+        val fitbitToken = _uiState.value.fitbitAccessToken
+        if (fitbitToken == null) {
+            logStatus("Error: Fitbit must be connected to sync.")
             return
         }
 
@@ -409,6 +434,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun syncGoogleHealthData(startDate: LocalDate, endDate: LocalDate, googleToken: String, msToken: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, syncProgress = null)
+            try {
+                val startStr = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val endStr = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val inclusiveEndStr = endDate.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+
+                logStatus("Fetching health data from Google ($startStr to $endStr)...")
+                
+                val googleHealthRepository = com.ankheye.pulsarsync.data.repository.GoogleHealthRepository()
+                val dataTypesToSync = listOf("steps", "distance", "total-calories", "heart-rate", "active-zone-minutes", "exercise")
+                
+                val folderPath = "${endDate.year}/${String.format("%02d", endDate.monthValue)}/${String.format("%02d", endDate.dayOfMonth)}"
+                
+                for (dataType in dataTypesToSync) {
+                    try {
+                        logStatus("Fetching $dataType...")
+                        
+                        // Map kebab-case to snake_case for filter fields
+                        val fieldName = dataType.replace("-", "_")
+                        
+                        // Use sample_time for heart_rate, interval for others
+                        val timeField = if (fieldName == "heart_rate") {
+                            "$fieldName.sample_time.civil_time"
+                        } else {
+                            "$fieldName.interval.civil_start_time"
+                        }
+                        
+                        val filter = "$timeField >= \"$startStr\" AND $timeField < \"$inclusiveEndStr\""
+                        
+                        val dataJson = googleHealthRepository.fetchDataPoints(googleToken, dataType, filter)
+                        
+                        oneDriveRepository.uploadFile(
+                            accessToken = msToken,
+                            folderPath = folderPath,
+                            fileName = "${dataType}_${endStr}.healthapi.json",
+                            fileContent = dataJson,
+                            contentType = "application/json"
+                        )
+                    } catch (e: Exception) {
+                        logStatus("Failed to sync $dataType: ${e.message}")
+                    }
+                }
+
+                logStatus("Google Health API Sync completed for $endStr!")
+            } catch (e: Exception) {
+                logStatus("Google Health Sync failed: ${e.message}")
+                e.printStackTrace()
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false, syncProgress = null)
+                refreshLatestSyncDates()
+            }
+        }
+    }
+
     fun loadActivityHistory(activityId: Long) {
         val msToken = _uiState.value.microsoftAccessToken
         if (msToken == null) {
@@ -452,8 +533,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 data class UiState(
     val fitbitAccessToken: String? = null,
     val microsoftAccessToken: String? = null,
+    val googleAccessToken: String? = null,
     val isFitbitConnected: Boolean = false,
     val isMicrosoftConnected: Boolean = false,
+    val isGoogleHealthConnected: Boolean = false,
+    val activeApiSource: String = "Fitbit",
     val isLoading: Boolean = false,
     val syncProgress: String? = null,
     val statusLog: String = "",

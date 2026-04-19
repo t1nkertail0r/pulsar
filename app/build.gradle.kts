@@ -30,6 +30,11 @@ android {
             ?: ""
         buildConfigField("String", "FITBIT_CLIENT_SECRET", "\"$fitbitSecret\"")
 
+        val googleClientId = System.getenv("GOOGLE_CLIENT_ID")
+            ?: localProperties.getProperty("GOOGLE_CLIENT_ID")
+            ?: ""
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
+
         val msalClientId = System.getenv("MSAL_CLIENT_ID")
             ?: localProperties.getProperty("MSAL_CLIENT_ID")
             ?: "5ca54ee8-677a-49ce-806c-7c2d72f5ea77"
@@ -89,4 +94,7 @@ dependencies {
     
     // MSAL for Microsoft Graph
     implementation("com.microsoft.identity.client:msal:8.2.2")
+
+    // Google Identity Services (Play Services Auth)
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
 }

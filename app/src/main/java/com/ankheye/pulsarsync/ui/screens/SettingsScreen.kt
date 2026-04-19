@@ -26,7 +26,8 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     onNavigateBack: () -> Unit,
     onConnectFitbit: () -> Unit,
-    onConnectMicrosoft: () -> Unit
+    onConnectMicrosoft: () -> Unit,
+    onConnectGoogleHealth: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
@@ -83,6 +84,35 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (uiState.isMicrosoftConnected) "Microsoft Connected" else "Connect Microsoft (OneDrive)")
+                    }
+
+                    Button(
+                        onClick = onConnectGoogleHealth,
+                        enabled = !uiState.isGoogleHealthConnected,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (uiState.isGoogleHealthConnected) "Google Health Connected" else "Connect Google Health API")
+                    }
+                }
+            }
+
+            Divider()
+
+            Text("Active Data Source", style = MaterialTheme.typography.titleMedium)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = uiState.activeApiSource == "Fitbit",
+                            onClick = { viewModel.setActiveApiSource("Fitbit") }
+                        )
+                        Text("Fitbit")
+                        Spacer(modifier = Modifier.width(24.dp))
+                        RadioButton(
+                            selected = uiState.activeApiSource == "GoogleHealth",
+                            onClick = { viewModel.setActiveApiSource("GoogleHealth") }
+                        )
+                        Text("Google Health")
                     }
                 }
             }
@@ -251,7 +281,7 @@ fun SettingsScreen(
                         viewModel.syncData(start, end, isForceSync)
                     }
                 },
-                enabled = uiState.syncStartDate != null && uiState.syncEndDate != null && uiState.isFitbitConnected && uiState.isMicrosoftConnected && !uiState.isLoading,
+                enabled = uiState.syncStartDate != null && uiState.syncEndDate != null && uiState.isMicrosoftConnected && !uiState.isLoading && (uiState.isFitbitConnected || uiState.isGoogleHealthConnected),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (uiState.isLoading) {
